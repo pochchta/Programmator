@@ -1,7 +1,4 @@
 #line 1 "C:/Programmator/prog.c"
-#line 7 "C:/Programmator/prog.c"
-char test_i;
-
 
 char crc;
 
@@ -20,53 +17,67 @@ void crc8(){
  }
  }
 }
-#line 47 "C:/Programmator/prog.c"
+#line 40 "C:/Programmator/prog.c"
 char rx_n;
 char rx_buf[3] = {0, 0, 0};
 char rx_buf_pre = 0;
+
 char rx_buf_f = 0;
 char rx_synch_f = 0;
 
 char crc_state = 0;
 
+
+
+
 char code_work_f = 0;
 char code_rx_n = 0;
 char code_in_n = 0;
 
-void UART(void) org 0x0023 {
+
+void UART(void) {
  if (SCON.RI) {
-
- if (rx_buf_f == 1);
-
-
-
- rx_buf[2] = rx_buf[1];
- rx_buf[1] = rx_buf[0];
- rx_buf[0] = SBUF;
-
- if (rx_synch_f == 0) {
- if ( (rx_buf[1] & rx_buf[2]) == 0xFF ) {
+ if (crc_state ==  3 ) {
+ rx_synch_f = 0;
+ rx_buf_pre = 0;
+ }
+ if (rx_buf_f == 0) {
+ if (rx_synch_f == 1) {
+ rx_buf[rx_n] = SBUF;
+ if (++rx_n == 3) {
+ rx_n = 0;
+ rx_buf_f = 1;
+ }
+ } else {
+ if (rx_buf_pre ==  0xFF  && SBUF ==  0xFF ) {
  rx_synch_f = 1;
  rx_n = 0;
+ crc_state = 0;
  }
-
+ rx_buf_pre = SBUF;
+ }
  } else {
-
+ rx_buf_f = 0;
+ rx_synch_f = 0;
+ rx_buf_pre = 0;
  }
 
  SCON.RI = 0;
  }
  if (SCON.TI) {
-#line 86 "C:/Programmator/prog.c"
+#line 90 "C:/Programmator/prog.c"
  }
 }
 
 
- volatile char test1 = 1;
- volatile char test2 = 2;
-void main() {
- if (
 
+void main() {
+
+
+ while (1) {
+SCON.RI = 1;
+ UART();
+ }
 
  if (rx_n == 0) {
  crc = SBUF;
@@ -86,15 +97,5 @@ void main() {
  code_rx_n++;
  if (code_rx_n > 9) code_rx_n = 0;
  }
-
-
-
- for (test_i = 255; test_i; ) {
- crc = test_i;
- crc8();
- test_i--;
- }
- crc ^= 0x10;
- crc8();
-#line 134 "C:/Programmator/prog.c"
+#line 141 "C:/Programmator/prog.c"
 }
