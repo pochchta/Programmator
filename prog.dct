@@ -61,9 +61,9 @@ c_t1_bit
 ceil
 character8x7
 cmd_status
-code_in_n
-code_rx_n
-code_work_f
+code_buf
+code_ready_f
+code_state
 compare_double
 cos
 cose3
@@ -313,9 +313,10 @@ rs0_bit
 rs1
 rs1_bit
 rx_buf
-rx_buf_f
-rx_buf_pre
 rx_n
+rx_pack_n
+rx_pack_n_prev
+rx_pream_n
 rx_synch_f
 sbuf
 scon
