@@ -30,10 +30,13 @@ void crc8(){  // CRC-8/DVB-S2
 
 
 
-char rx_n = 0;               // номер принятого байта; 0 - начало приема
-char rx_buf[3] = {0, 0, 0};  // буфер под пакет данных
-char rx_pack_n = 0;          // номер принятой посылки
 
+char rx_pack_n = 0;          // номер принятой посылки
+signed char rx_n = 0;        // номер принятого байта; 0 - начало приема, (-1) - найдена преамбула
+char rx_buf[3] = {0, 0, 0};  // буфер под пакет данных
+
+char rx_buf_copy[3];         // буфер для копирования данных из переменных обработчика прерывания
+signed char rx_n_copy;       // --//--
 char rx_pack_n_prev = 0;     // номер принятой предыдущей посылки
 char rx_synch_f = 0;         // флаг синхронизации, гарантия что дальше данные не с середины байта и не с середины пакета
 char rx_pream_n;             // кол-во совпадений преамбулы
@@ -53,9 +56,10 @@ char code_buf[2];            // код для выполнения
 #define code_state_STOP 10
 char code_state = code_state_STOP;  // состояние исполнителя кода
 
+
 void UART(void) org 0x0023 {
     if (SCON.RI) {    // закончился приём
-        if (rx_n == 3) {
+        if (rx_n == 3 || rx_n < 0) {
             rx_n = 0;
             rx_pack_n++;
             if (rx_pack_n == 10) rx_pack_n = 0;
@@ -74,15 +78,47 @@ void UART(void) org 0x0023 {
 
 
 void main() {
+
+    P1 = 0XFF;
+    P3 = 0XFF;
+    PCON.F7 = 0;             // НЕ удвоенная скорость передачи
+    TMOD = 0b00100001;       // настройка таймеров
+    //       |||||||+-----     M0 (T0) = 1, режим 1 (0b01) таймер 0; режим 1 - 16 битный С/Т
+    //       ||||||+------     M1 (T0) = 0, режим 1 (0b01) таймер 0; режим 1 - 16 битный С/Т
+    //       |||||+-------     внутренний источник таймер 0
+    //       ||||+--------     блокировка откл., таймер 0
+    //       |||+---------     M0 (T1) = 0, режим 2 (0b10) таймер 1; режим 2 - автоперегружаемый таймер
+    //       ||+----------     M1 (T1) = 1, режим 2 (0b10) таймер 1; режим 2 - автоперегружаемый таймер
+    //       |+-----------     внутренний источник таймер 1
+    //       +------------     блокировка откл., таймер 1
+    TL0 = 0x89;                // настройка таймера 0 на
+    TH0 = 0xE6;                // 1500 мс - т.е. половину периода серво
+    TH1 = 0xFA;              // автоперегружаемое число для 4800 кбит
+    SCON = 0;
+    SCON.SM0 = 0;              // режим 1 - 8 бит, по таймеру 1
+    SCON.SM1 = 1;              // режим 1
+    SCON.REN = 1;              // разрешение приема
+    TCON = 0;
+    TCON.TR1 = 1;            // пуск таймера 1
+    TCON.TR0 = 1;            // пуск таймера 0
+    IE.EA = 1;               // разрешены все прерывания
+    IE.ES = 1;                // разрешено прерывание по UART
+  //  IE.ET0 = 1;               // разрешено прерывание по таймеру 0
+  //  IP.PT0 = 1;               // приоритет прерывания таймера 0
+
     while (1) {
+
+    
         if (rx_synch_f == 0) {                   // синхронизация
             rx_pream_n = 0;
-            for (rx_n = 3; rx_n == 0; rx_n --) if (rx_buf[rx_n] == rx_PREAM) rx_pream_n++;
-            if (rx_pream_n > 1) {
-                rx_synch_f = 1;
-                rx_n = 0;
-                crc_state = 0;
-            }
+            IE.ES = 0;                                                                   //  |-- запрещено прерывание по UART
+            for (rx_n = 0; rx_n < 3; rx_n++) if (rx_buf[rx_n] == rx_PREAM) rx_pream_n++; //  |
+            if (rx_pream_n > 1) {                                                        //  |
+                rx_synch_f = 1;                                                          //  |
+                rx_n = -1;                                                               //  |
+                crc_state = 0;                                                           //  |
+            }                                                                            //  |
+            IE.ES = 1;                                                                   //  |-- разрешено прерывание по UART
         }
 
         if (rx_pack_n != rx_pack_n_prev) {       // получение новой посылки
@@ -91,25 +127,31 @@ void main() {
         }
 
         if (rx_synch_f == 1) {                   // проверка данных
-            if (crc_state == 0 && rx_n > 0) {
-                crc = rx_buf[0];
+            IE.ES = 0;                                  //  |-- запрещено прерывание по UART
+            rx_buf_copy[0] = rx_buf[0];                 //  |
+            rx_buf_copy[1] = rx_buf[1];                 //  |
+            rx_buf_copy[2] = rx_buf[2];                 //  |
+            rx_n_copy = rx_n;                           //  |
+            IE.ES = 1;                                  //  |-- разрешено прерывание по UART
+            if (crc_state == 0 && rx_n_copy > 0) {
+                crc = rx_buf_copy[0];
                 crc8();
                 crc_state++;
             }
-            if (crc_state == 1 && rx_n > 1) {
-                crc ^= rx_buf[1];
+            if (crc_state == 1 && rx_n_copy > 1) {
+                crc ^= rx_buf_copy[1];
                 crc8();
                 crc_state++;
             }
-            if (crc_state == 2 && rx_n > 2) {
-                if (crc == rx_buf[2] /*&& формат посылки*/) {
+            if (crc_state == 2 && rx_n_copy > 2) {
+                if (crc == rx_buf_copy[2] /*&& формат посылки*/) {
                     crc_state = crc_state_OK;
                     code_ready_f = 1;
                 } else rx_synch_f = 0;
             }
             if (code_ready_f == 1 && code_state == code_state_STOP) {
-                code_buf[0] = rx_buf[0];
-                code_buf[1] = rx_buf[1];
+                code_buf[0] = rx_buf_copy[0];
+                code_buf[1] = rx_buf_copy[1];
                 code_state = 0;
                 code_ready_f = 0;
             }

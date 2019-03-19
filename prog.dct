@@ -313,7 +313,9 @@ rs0_bit
 rs1
 rs1_bit
 rx_buf
+rx_buf_copy
 rx_n
+rx_n_copy
 rx_pack_n
 rx_pack_n_prev
 rx_pream_n
