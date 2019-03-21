@@ -424,6 +424,9 @@ tr0
 tr0_bit
 tr1
 tr1_bit
+tx_n
+tx_pointer
+tx_start
 uart
 uldiv
 vdelay_ms

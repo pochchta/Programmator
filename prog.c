@@ -17,30 +17,19 @@ void crc8(){  // CRC-8/DVB-S2
      }
 }
 
-/* Последовательность приема
-0 - ловим преамбулу
-1 - устанавливаем флаг синхронизации, сбросим потом (вместе с rx_buf[]) если ошибка crc или номер команды 0
-2 - пишем в буфер данные с приемника
-3 - для байтов № 0,1 выполняем crc8(), предварительно обнулив
-4 - сравниваем вычисленную crc8 с байтом № 2
-5 - если предыдущая команда выполнена и crc8 подтверждена, то вносится новая команда
-6 - команды начала и конца дублируются на передатчик, команда начала перезаписывает номер команды в МК
-7 - на запрос повторной передачи ПК начинает с преамбулы
-*/
-
-
-
-
 char rx_pack_n = 0;          // номер принятой посылки
 signed char rx_n = 0;        // номер принятого байта; 0 - начало приема, (-1) - найдена преамбула
 char rx_buf[3] = {0, 0, 0};  // буфер под пакет данных
 
-char rx_buf_copy[3];         // буфер для копирования данных из переменных обработчика прерывания
+char rx_buf_copy[3];         // буфер для копирования данных из переменных обработчика прерывания uart
 signed char rx_n_copy;       // --//--
 char rx_pack_n_prev = 0;     // номер принятой предыдущей посылки
 char rx_synch_f = 0;         // флаг синхронизации, гарантия что дальше данные не с середины байта и не с середины пакета
 char rx_pream_n;             // кол-во совпадений преамбулы
-#define rx_PREAM 0xFF        // преамбула
+#define rx_PREAM 'i'//0xFF        // преамбула
+
+char *tx_pointer;
+char tx_n = 0;
 
 char crc_state = 0;          // состояние crc8(), см. help
 #define crc_state_0 0          // начало счета
@@ -57,6 +46,12 @@ char code_buf[2];            // код для выполнения
 char code_state = code_state_STOP;  // состояние исполнителя кода
 
 
+/*char db,db_i, db_y=1;              // debug
+void db_start(void){
+    SBUF = db;
+}*/
+
+
 void UART(void) org 0x0023 {
     if (SCON.RI) {    // закончился приём
         if (rx_n == 3 || rx_n < 0) {
@@ -69,12 +64,27 @@ void UART(void) org 0x0023 {
         SCON.RI = 0;
     }
     if (SCON.TI) {    // закончилась передача
-      /*TX_wait_data = 1;
-        SBUF = SBUF_buf;
-        SCON.TI = 0;*/
+        if (tx_n > 0) {
+            if (tx_n > 3) SBUF = rx_PREAM;
+            else SBUF = *(tx_pointer + 3 - tx_n);
+            tx_n--;
+        }
+        SCON.TI = 0;
     }
 }
+
+void tx_start(char tx_start_input, char *tx_start_pointer){
+    tx_n = tx_start_input;
+    tx_pointer = tx_start_pointer;
+    if (tx_n > 3) SBUF = rx_PREAM;
+    else SBUF = *(tx_pointer + 3 - tx_n);
+    tx_n--;
+}
 //--------------------------------------------------------------------------------------------------------
+
+
+
+
 
 
 void main() {
@@ -106,13 +116,32 @@ void main() {
   //  IE.ET0 = 1;               // разрешено прерывание по таймеру 0
   //  IP.PT0 = 1;               // приоритет прерывания таймера 0
 
+  //db_start();
+
+
     while (1) {
+    
+    //  delete
+    
+   //     crc = '0';
+   //     crc8();
+ //       crc ^= 'p';
+//        crc8();       // 0pn
+
+        //p1 = rx_n + '0';
+        //db = crc_state + '0';
+        //db_i++;
+        //if (db_i == 0) db_y++;
+        //if (db_i == 0) SBUF = 'y';
+        //db = rx_buf[0];
+
+    //  delete
 
     
         if (rx_synch_f == 0) {                   // синхронизация
             rx_pream_n = 0;
             IE.ES = 0;                                                                   //  |-- запрещено прерывание по UART
-            for (rx_n = 0; rx_n < 3; rx_n++) if (rx_buf[rx_n] == rx_PREAM) rx_pream_n++; //  |
+            for (rx_n_copy = 0; rx_n_copy < 3; rx_n_copy++) if (rx_buf[rx_n_copy] == rx_PREAM) rx_pream_n++; //  |
             if (rx_pream_n > 1) {                                                        //  |
                 rx_synch_f = 1;                                                          //  |
                 rx_n = -1;                                                               //  |
@@ -147,7 +176,10 @@ void main() {
                 if (crc == rx_buf_copy[2] /*&& формат посылки*/) {
                     crc_state = crc_state_OK;
                     code_ready_f = 1;
-                } else rx_synch_f = 0;
+                } else {
+                    crc_state = crc_state_ERR;
+                    rx_synch_f = 0;
+                }
             }
             if (code_ready_f == 1 && code_state == code_state_STOP) {
                 code_buf[0] = rx_buf_copy[0];
@@ -157,7 +189,13 @@ void main() {
             }
         }
 
-        /* исполнитель кода */
+        switch (code_state){                     // исполнитель кода
+            case 0: tx_start(3 , & rx_buf_copy[0]);
+                code_state = code_state_STOP;
+                break;
+            
+        
+        }
     }
       
 

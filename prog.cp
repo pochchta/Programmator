@@ -17,7 +17,7 @@ void crc8(){
  }
  }
 }
-#line 34 "C:/Programmator/prog.c"
+
 char rx_pack_n = 0;
 signed char rx_n = 0;
 char rx_buf[3] = {0, 0, 0};
@@ -28,6 +28,9 @@ char rx_pack_n_prev = 0;
 char rx_synch_f = 0;
 char rx_pream_n;
 
+
+char *tx_pointer;
+char tx_n = 0;
 
 char crc_state = 0;
 
@@ -42,8 +45,7 @@ char code_ready_f = 0;
 char code_buf[2];
 
 char code_state =  10 ;
-
-
+#line 55 "C:/Programmator/prog.c"
 void UART(void) org 0x0023 {
  if (SCON.RI) {
  if (rx_n == 3 || rx_n < 0) {
@@ -56,9 +58,26 @@ void UART(void) org 0x0023 {
  SCON.RI = 0;
  }
  if (SCON.TI) {
-#line 75 "C:/Programmator/prog.c"
+ if (tx_n > 0) {
+ if (tx_n > 3) SBUF =  'i' ;
+ else SBUF = *(tx_pointer + 3 - tx_n);
+ tx_n--;
+ }
+ SCON.TI = 0;
  }
 }
+
+void tx_start(char tx_start_input, char *tx_start_pointer){
+ tx_n = tx_start_input;
+ tx_pointer = tx_start_pointer;
+ if (tx_n > 3) SBUF =  'i' ;
+ else SBUF = *(tx_pointer + 3 - tx_n);
+ tx_n--;
+}
+
+
+
+
 
 
 
@@ -91,13 +110,15 @@ void main() {
 
 
 
+
+
+
  while (1) {
-
-
+#line 141 "C:/Programmator/prog.c"
  if (rx_synch_f == 0) {
  rx_pream_n = 0;
  IE.ES = 0;
- for (rx_n = 0; rx_n < 3; rx_n++) if (rx_buf[rx_n] ==  0xFF ) rx_pream_n++;
+ for (rx_n_copy = 0; rx_n_copy < 3; rx_n_copy++) if (rx_buf[rx_n_copy] ==  'i' ) rx_pream_n++;
  if (rx_pream_n > 1) {
  rx_synch_f = 1;
  rx_n = -1;
@@ -132,7 +153,10 @@ void main() {
  if (crc == rx_buf_copy[2] ) {
  crc_state =  3 ;
  code_ready_f = 1;
- } else rx_synch_f = 0;
+ } else {
+ crc_state =  4 ;
+ rx_synch_f = 0;
+ }
  }
  if (code_ready_f == 1 && code_state ==  10 ) {
  code_buf[0] = rx_buf_copy[0];
@@ -142,7 +166,13 @@ void main() {
  }
  }
 
+ switch (code_state){
+ case 0: tx_start(3 , & rx_buf_copy[0]);
+ code_state =  10 ;
+ break;
 
+
+ }
  }
 
 
