@@ -1,55 +1,13 @@
-
-char crc;
-#define CRC8_POLYNOM #0xD5
-void crc8(){  // CRC-8/DVB-S2
-     char i_crc;
-     for (i_crc = 8 ; i_crc ; i_crc--){
-          asm {
-               mov A, _crc
-               clr C
-               rlc A
-               mov _crc, A
-               JNC M_CRC_END
-               xrl A, CRC8_POLYNOM
-               mov _crc, A
-               M_CRC_END:
-          }
-     }
-}
-
-char rx_pack_n = 0;          // номер принятой посылки
-signed char rx_n = 0;        // номер принятого байта; 0 - начало приема, (-1) - найдена преамбула
-char rx_buf[3] = {0, 0, 0};  // буфер под пакет данных
-
-char rx_buf_copy[3];         // буфер для копирования данных из переменных обработчика прерывания uart
-signed char rx_n_copy;       // --//--
-char rx_pack_n_prev = 0;     // номер принятой предыдущей посылки
-char rx_synch_f = 0;         // флаг синхронизации, гарантия что дальше данные не с середины байта и не с середины пакета
-char rx_pream_n;             // кол-во совпадений преамбулы
-#define rx_PREAM 'i'//0xFF        // преамбула
-
-char *tx_pointer;
-char tx_n = 0;
-
-char crc_state = 0;          // состояние crc8(), см. help
-#define crc_state_0 0          // начало счета
-#define crc_state_OK 3         // успешно
-#define crc_state_ERR 4        // ошибка
-
-//char code_work_f = 0;      // флаг в работе
-//char code_rx_n = 0;        // номер команды  0...9 из принятой посылки
-//char code_in_n = 0;        // номер команды внутри МК
-
-char code_ready_f = 0;       // флаг готовности кода для выполнения
-char code_buf[2];            // код для выполнения
-#define code_state_STOP 10
-char code_state = code_state_STOP;  // состояние исполнителя кода
+#include "variables.h"
+#include "functions.h"
 
 
-/*char db,db_i, db_y=1;              // debug
-void db_start(void){
-    SBUF = db;
-}*/
+
+///////////--------------------------------------------удалить
+char db,db_i, db_y=1;              // debug
+char *db_p;
+
+///---------------------------------------------------------удалить
 
 
 void UART(void) org 0x0023 {
@@ -73,19 +31,17 @@ void UART(void) org 0x0023 {
     }
 }
 
-void tx_start(char tx_start_input, char *tx_start_pointer){
-    tx_n = tx_start_input;
-    tx_pointer = tx_start_pointer;
-    if (tx_n > 3) SBUF = rx_PREAM;
-    else SBUF = *(tx_pointer + 3 - tx_n);
-    tx_n--;
+
+volatile const char tx_msg_rom[2][4] = {"ERR" , "OK!"};
+#define tx_msg_ERR 0
+#define tx_msg_OK 1
+
+void tx_msg_to_buf(const char *tx_msg_input){
+    char tx_msg_i;
+    for (tx_msg_i = 0 ; tx_msg_i < 3 ; tx_msg_i++){
+        tx_buf[tx_msg_i] = tx_msg_input[tx_msg_i];
+    }
 }
-//--------------------------------------------------------------------------------------------------------
-
-
-
-
-
 
 void main() {
 
@@ -116,12 +72,14 @@ void main() {
   //  IE.ET0 = 1;               // разрешено прерывание по таймеру 0
   //  IP.PT0 = 1;               // приоритет прерывания таймера 0
 
-  //db_start();
 
+    //--------------------------------------------------  delete
+  //db_start();
+    //--------------------------------------------------  delete
 
     while (1) {
     
-    //  delete
+    //--------------------------------------------------  delete
     
    //     crc = '0';
    //     crc8();
@@ -135,7 +93,8 @@ void main() {
         //if (db_i == 0) SBUF = 'y';
         //db = rx_buf[0];
 
-    //  delete
+
+      //------------------------------------------------------------delete
 
     
         if (rx_synch_f == 0) {                   // синхронизация
@@ -175,26 +134,34 @@ void main() {
             if (crc_state == 2 && rx_n_copy > 2) {
                 if (crc == rx_buf_copy[2] /*&& формат посылки*/) {
                     crc_state = crc_state_OK;
-                    code_ready_f = 1;
+                    code_ready = code_ready_OK;
                 } else {
                     crc_state = crc_state_ERR;
+                    code_ready = code_ready_ERR;
                     rx_synch_f = 0;
                 }
             }
-            if (code_ready_f == 1 && code_state == code_state_STOP) {
+            if (code_ready != code_ready_NOT && code_state == code_state_STOP) {
                 code_buf[0] = rx_buf_copy[0];
                 code_buf[1] = rx_buf_copy[1];
-                code_state = 0;
-                code_ready_f = 0;
+                if (code_ready == code_ready_OK) {
+                    code_state = 0;
+                } else {
+                    code_state = 10;
+                }
+                code_ready = code_ready_NOT;
             }
         }
 
         switch (code_state){                     // исполнитель кода
-            case 0: tx_start(3 , & rx_buf_copy[0]);
+            case 0: tx_start(3 , rx_buf_copy);
                 code_state = code_state_STOP;
                 break;
             
-        
+            case 10: tx_msg_to_buf(tx_msg_rom[tx_msg_ERR]);
+                tx_start(3 , tx_buf);
+                code_state = code_state_STOP;
+                break;
         }
     }
       

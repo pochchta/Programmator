@@ -62,7 +62,7 @@ ceil
 character8x7
 cmd_status
 code_buf
-code_ready_f
+code_ready
 code_state
 compare_double
 cos
@@ -73,6 +73,10 @@ crc_state
 crc8
 cy
 cy_bit
+db
+db_i
+db_p
+db_y
 dec2bcd
 dec2bcd16
 delay_100ms
@@ -424,6 +428,9 @@ tr0
 tr0_bit
 tr1
 tr1_bit
+tx_buf
+tx_msg_rom
+tx_msg_to_buf
 tx_n
 tx_pointer
 tx_start
