@@ -1,7 +1,8 @@
-char crc;
+char crc;                    // глобальная, т.к. используется в ассемблерной вставке
 #define CRC8_POLYNOM #0xD5
-void crc8(){  // CRC-8/DVB-S2
+char crc8(char crc8_input){  // CRC-8/DVB-S2
      char i_crc;
+     crc = crc8_input;
      for (i_crc = 8 ; i_crc ; i_crc--){
           asm {
                mov A, _crc
@@ -14,9 +15,10 @@ void crc8(){  // CRC-8/DVB-S2
                M_CRC_END:
           }
      }
+     return crc;
 }
 
-void tx_start(char tx_start_input, char *tx_start_pointer){
+void tx_start(char tx_start_input, char *tx_start_pointer){     // начало передачи
     tx_n = tx_start_input;
     tx_pointer = tx_start_pointer;
     if (tx_n > 3) SBUF = rx_PREAM;
@@ -24,4 +26,10 @@ void tx_start(char tx_start_input, char *tx_start_pointer){
     tx_n--;
 }
 
+void tx_msg_to_buf(const char *tx_msg_input){                  // запись текста rom в tx_buf[]
+    char tx_msg_i;
+    for (tx_msg_i = 0 ; tx_msg_i < 3 ; tx_msg_i++){
+        tx_buf[tx_msg_i] = tx_msg_input[tx_msg_i];
+    }
+}
 

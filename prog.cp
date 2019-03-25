@@ -10,10 +10,15 @@ char rx_pack_n_prev = 0;
 char rx_synch_f = 0;
 char rx_pream_n;
 
+char rx_crc;
 
+char tx_crc;
 char *tx_pointer;
 char tx_n = 0;
 char tx_buf[3];
+volatile const char tx_msg_rom[2][4] = {"ERR" , "OK!"};
+
+
 
 char crc_state = 0;
 
@@ -30,13 +35,14 @@ char code_ready = 0;
 
 
 char code_buf[2];
-
+#line 56 "c:/programmator/variables.h"
 char code_state =  99 ;
 #line 1 "c:/programmator/functions.h"
 char crc;
 
-void crc8(){
+char crc8(char crc8_input){
  char i_crc;
+ crc = crc8_input;
  for (i_crc = 8 ; i_crc ; i_crc--){
  asm {
  mov A, _crc
@@ -49,6 +55,7 @@ void crc8(){
  M_CRC_END:
  }
  }
+ return crc;
 }
 
 void tx_start(char tx_start_input, char *tx_start_pointer){
@@ -57,6 +64,13 @@ void tx_start(char tx_start_input, char *tx_start_pointer){
  if (tx_n > 3) SBUF =  'i' ;
  else SBUF = *(tx_pointer + 3 - tx_n);
  tx_n--;
+}
+
+void tx_msg_to_buf(const char *tx_msg_input){
+ char tx_msg_i;
+ for (tx_msg_i = 0 ; tx_msg_i < 3 ; tx_msg_i++){
+ tx_buf[tx_msg_i] = tx_msg_input[tx_msg_i];
+ }
 }
 #line 7 "C:/Programmator/prog.c"
 char db,db_i, db_y=1;
@@ -83,18 +97,6 @@ void UART(void) org 0x0023 {
  tx_n--;
  }
  SCON.TI = 0;
- }
-}
-
-
-volatile const char tx_msg_rom[2][4] = {"ERR" , "OK!"};
-
-
-
-void tx_msg_to_buf(const char *tx_msg_input){
- char tx_msg_i;
- for (tx_msg_i = 0 ; tx_msg_i < 3 ; tx_msg_i++){
- tx_buf[tx_msg_i] = tx_msg_input[tx_msg_i];
  }
 }
 
@@ -133,7 +135,7 @@ void main() {
 
 
  while (1) {
-#line 100 "C:/Programmator/prog.c"
+#line 88 "C:/Programmator/prog.c"
  if (rx_synch_f == 0) {
  rx_pream_n = 0;
  IE.ES = 0;
@@ -159,17 +161,15 @@ void main() {
  rx_n_copy = rx_n;
  IE.ES = 1;
  if (crc_state == 0 && rx_n_copy > 0) {
- crc = rx_buf_copy[0];
- crc8();
+ rx_crc = crc8(rx_buf_copy[0]);
  crc_state++;
  }
  if (crc_state == 1 && rx_n_copy > 1) {
- crc ^= rx_buf_copy[1];
- crc8();
+ rx_crc = crc8(rx_crc ^= rx_buf_copy[1]);
  crc_state++;
  }
  if (crc_state == 2 && rx_n_copy > 2) {
- if (crc == rx_buf_copy[2] ) {
+ if (rx_crc == rx_buf_copy[2] ) {
  crc_state =  3 ;
  code_ready =  1 ;
  } else {

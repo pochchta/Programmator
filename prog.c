@@ -31,18 +31,6 @@ void UART(void) org 0x0023 {
     }
 }
 
-
-volatile const char tx_msg_rom[2][4] = {"ERR" , "OK!"};
-#define tx_msg_ERR 0
-#define tx_msg_OK 1
-
-void tx_msg_to_buf(const char *tx_msg_input){
-    char tx_msg_i;
-    for (tx_msg_i = 0 ; tx_msg_i < 3 ; tx_msg_i++){
-        tx_buf[tx_msg_i] = tx_msg_input[tx_msg_i];
-    }
-}
-
 void main() {
 
     P1 = 0XFF;
@@ -94,7 +82,7 @@ void main() {
         //db = rx_buf[0];
 
 
-      //------------------------------------------------------------delete
+      //------------------------------------------------- delete
 
     
         if (rx_synch_f == 0) {                   // синхронизация
@@ -122,17 +110,15 @@ void main() {
             rx_n_copy = rx_n;                           //  |
             IE.ES = 1;                                  //  |-- разрешено прерывание по UART
             if (crc_state == 0 && rx_n_copy > 0) {
-                crc = rx_buf_copy[0];
-                crc8();
+                rx_crc = crc8(rx_buf_copy[0]);
                 crc_state++;
             }
             if (crc_state == 1 && rx_n_copy > 1) {
-                crc ^= rx_buf_copy[1];
-                crc8();
+                rx_crc = crc8(rx_crc ^= rx_buf_copy[1]);
                 crc_state++;
             }
             if (crc_state == 2 && rx_n_copy > 2) {
-                if (crc == rx_buf_copy[2] /*&& формат посылки*/) {
+                if (rx_crc == rx_buf_copy[2] /*&& формат посылки*/) {
                     crc_state = crc_state_OK;
                     code_ready = code_ready_OK;
                 } else {
@@ -154,14 +140,18 @@ void main() {
         }
 
         switch (code_state){                     // исполнитель кода
-            case 0: tx_start(3 , rx_buf_copy);
+            case 111: tx_start(3 , rx_buf_copy);
                 code_state = code_state_STOP;
                 break;
             
-            case 10: tx_msg_to_buf(tx_msg_rom[tx_msg_ERR]);
+            case 112: tx_msg_to_buf(tx_msg_rom[tx_msg_ERR]);
                 tx_start(3 , tx_buf);
                 code_state = code_state_STOP;
                 break;
+            case code_state_rd_p1:
+            
+                break;
+                
         }
     }
       
