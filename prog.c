@@ -15,7 +15,7 @@ void UART(void) org 0x0023 {
         if (rx_n == 3 || rx_n < 0) {
             rx_n = 0;
             rx_pack_n++;
-            if (rx_pack_n == 10) rx_pack_n = 0;
+            if (rx_pack_n == rx_pack_n_MAX) rx_pack_n = 0;
         }
         rx_buf[rx_n] = SBUF;
         rx_n++;
@@ -108,6 +108,7 @@ void main() {
             rx_buf_copy[1] = rx_buf[1];                 //  |
             rx_buf_copy[2] = rx_buf[2];                 //  |
             rx_n_copy = rx_n;                           //  |
+            rx_pack_n_copy = rx_pack_n;                 //  |
             IE.ES = 1;                                  //  |-- разрешено прерывание по UART
             if (crc_state == 0 && rx_n_copy > 0) {
                 rx_crc = crc8(rx_buf_copy[0]);
@@ -118,12 +119,19 @@ void main() {
                 crc_state++;
             }
             if (crc_state == 2 && rx_n_copy > 2) {
-                if (rx_crc == rx_buf_copy[2] /*&& формат посылки*/) {
+                if (rx_crc == rx_buf_copy[2]) {
                     crc_state = crc_state_OK;
                     code_ready = code_ready_OK;
+                    if ((rx_buf_copy[0] & 0b00001111) >= rx_pack_n_MAX || (rx_buf_copy[0] & 0b00001111) != rx_pack_n_copy) {
+                        if (code_state != code_state_ses_st) // проверка на правильность номера, исключение - старт сессии
+                          code_ready = code_ready_ERR_N;
+                    }
+                    if (rx_buf_copy[0] & 0b11110000 > code_state_rx_MAX) { // проверка на правильность кода
+                        code_ready = code_ready_ERR_C;
+                    }
                 } else {
                     crc_state = crc_state_ERR;
-                    code_ready = code_ready_ERR;
+                    code_ready = code_ready_ERR_CRC;
                     rx_synch_f = 0;
                 }
             }
@@ -131,30 +139,117 @@ void main() {
                 code_buf[0] = rx_buf_copy[0];
                 code_buf[1] = rx_buf_copy[1];
                 if (code_ready == code_ready_OK) {
-                    code_state = 0;
-                } else {
-                    code_state = 10;
+                    code_state = rx_buf_copy[0] & 0b00001111;
+                }
+                if (code_ready == code_ready_ERR_CRC) {
+                    code_state = code_state_msg_err_crc;
+                }
+                if (code_ready == code_ready_ERR_N) {
+                    code_state = code_state_msg_err_n;
+                }
+                if (code_ready == code_ready_ERR_C) {
+                    code_state = code_state_msg_err_c;
                 }
                 code_ready = code_ready_NOT;
             }
         }
 
         switch (code_state){                     // исполнитель кода
+        /*
             case 111: tx_start(3 , rx_buf_copy);
                 code_state = code_state_STOP;
                 break;
-            
             case 112: tx_msg_to_buf(tx_msg_rom[tx_msg_ERR]);
                 tx_start(3 , tx_buf);
                 code_state = code_state_STOP;
-                break;
+                break;                      */
             case code_state_rd_p1:
             
                 break;
-                
+            case code_state_wr_p1:
+
+                break;
+            case code_state_im_p1:
+
+                break;
+            case code_state_rd_p3:
+
+                break;
+            case code_state_wr_p3:
+
+                break;
+            case code_state_im_p3:
+
+                break;
+            case code_state_wr_r:
+
+                break;
+            case code_state_im_r:
+
+                break;
+            //---------------------------
+            case code_state_err:
+
+                break;
+            case code_state_err_pream:
+
+                break;
+            case code_state_err_crc:
+            
+                break;
+            case code_state_err_for:
+
+                break;
+            //---------------------------
+            case code_state_ok:
+
+                break;
+            case code_state_ok_st:
+
+                break;
+            case code_state_ok_end:
+
+                break;
+            //---------------------------
+            case code_state_ses:
+
+                break;
+            case code_state_ses_st:
+
+                break;
+            case code_state_ses_end:
+
+                break;
+            //---------------------------
+            case code_state_msg_err_pream:
+
+                break;
+            case code_state_msg_err_crc:
+
+                break;
+            case code_state_msg_err_n:
+
+                break;
+            case code_state_msg_err_c:
+
+                break;
+            //---------------------------
+            case code_state_msg_ok_st:
+
+                break;
+            case code_state_msg_ok_end:
+
+                break;
+            //---------------------------
+            case code_state_crc0:
+
+                break;
+            case code_state_crc1:
+
+                break;
+            case code_state_crc2:
+
+                break;
         }
     }
-      
-
-
 }

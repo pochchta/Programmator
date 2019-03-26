@@ -322,6 +322,8 @@ rx_crc
 rx_n
 rx_n_copy
 rx_pack_n
+rx_pack_n_copy
+rx_pack_n_mc
 rx_pack_n_prev
 rx_pream_n
 rx_synch_f

@@ -4,9 +4,13 @@ char rx_pack_n = 0;
 signed char rx_n = 0;
 char rx_buf[3] = {0, 0, 0};
 
+
 char rx_buf_copy[3];
 signed char rx_n_copy;
+char rx_pack_n_copy;
+
 char rx_pack_n_prev = 0;
+char rx_pack_n_mc;
 char rx_synch_f = 0;
 char rx_pream_n;
 
@@ -16,15 +20,11 @@ char tx_crc;
 char *tx_pointer;
 char tx_n = 0;
 char tx_buf[3];
-volatile const char tx_msg_rom[2][4] = {"ERR" , "OK!"};
+const char tx_msg_rom[2][4] = {"ERR" , "OK!"};
 
 
 
 char crc_state = 0;
-
-
-
-
 
 
 
@@ -34,8 +34,10 @@ char code_ready = 0;
 
 
 
+
+
 char code_buf[2];
-#line 56 "c:/programmator/variables.h"
+#line 72 "c:/programmator/variables.h"
 char code_state =  99 ;
 #line 1 "c:/programmator/functions.h"
 char crc;
@@ -84,7 +86,7 @@ void UART(void) org 0x0023 {
  if (rx_n == 3 || rx_n < 0) {
  rx_n = 0;
  rx_pack_n++;
- if (rx_pack_n == 10) rx_pack_n = 0;
+ if (rx_pack_n ==  10 ) rx_pack_n = 0;
  }
  rx_buf[rx_n] = SBUF;
  rx_n++;
@@ -159,6 +161,7 @@ void main() {
  rx_buf_copy[1] = rx_buf[1];
  rx_buf_copy[2] = rx_buf[2];
  rx_n_copy = rx_n;
+ rx_pack_n_copy = rx_pack_n;
  IE.ES = 1;
  if (crc_state == 0 && rx_n_copy > 0) {
  rx_crc = crc8(rx_buf_copy[0]);
@@ -169,9 +172,16 @@ void main() {
  crc_state++;
  }
  if (crc_state == 2 && rx_n_copy > 2) {
- if (rx_crc == rx_buf_copy[2] ) {
+ if (rx_crc == rx_buf_copy[2]) {
  crc_state =  3 ;
  code_ready =  1 ;
+ if ((rx_buf_copy[0] & 0b00001111) >=  10  || (rx_buf_copy[0] & 0b00001111) != rx_pack_n_copy) {
+ if (code_state !=  60 )
+ code_ready =  3 ;
+ }
+ if (rx_buf_copy[0] & 0b11110000 >  10 << 4 ) {
+ code_ready =  4 ;
+ }
  } else {
  crc_state =  4 ;
  code_ready =  2 ;
@@ -182,26 +192,110 @@ void main() {
  code_buf[0] = rx_buf_copy[0];
  code_buf[1] = rx_buf_copy[1];
  if (code_ready ==  1 ) {
- code_state = 0;
- } else {
- code_state = 10;
+
+ }
+ if (code_ready ==  2 ) {
+ code_state =  71 ;
+ }
+ if (code_ready ==  3 ) {
+ code_state =  72 ;
+ }
+ if (code_ready ==  4 ) {
+ code_state =  73 ;
  }
  code_ready =  0 ;
  }
  }
 
  switch (code_state){
- case 0: tx_start(3 , rx_buf_copy);
- code_state =  99 ;
+#line 166 "C:/Programmator/prog.c"
+ case  0 :
+
+ break;
+ case  1 :
+
+ break;
+ case  2 :
+
+ break;
+ case  3 :
+
+ break;
+ case  4 :
+
+ break;
+ case  5 :
+
+ break;
+ case  6 :
+
+ break;
+ case  7 :
+
  break;
 
- case 10: tx_msg_to_buf(tx_msg_rom[ 0 ]);
- tx_start(3 , tx_buf);
- code_state =  99 ;
+ case  8 :
+
+ break;
+ case  40 :
+
+ break;
+ case  41 :
+
+ break;
+ case  42 :
+
+ break;
+
+ case  9 :
+
+ break;
+ case  50 :
+
+ break;
+ case  51 :
+
+ break;
+
+ case  10 :
+
+ break;
+ case  60 :
+
+ break;
+ case  61 :
+
+ break;
+
+ case  70 :
+
+ break;
+ case  71 :
+
+ break;
+ case  72 :
+
+ break;
+ case  73 :
+
+ break;
+
+ case  80 :
+
+ break;
+ case  81 :
+
+ break;
+
+ case  90 :
+
+ break;
+ case  91 :
+
+ break;
+ case  92 :
+
  break;
  }
  }
-
-
-
 }
