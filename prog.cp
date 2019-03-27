@@ -16,7 +16,7 @@ char rx_pream_n;
 
 char rx_crc;
 
-char tx_crc;
+char tx_crc[3];
 char *tx_pointer;
 char tx_n = 0;
 char tx_buf[3];
@@ -37,7 +37,8 @@ char code_ready = 0;
 
 
 char code_buf[2];
-#line 72 "c:/programmator/variables.h"
+char code_num;
+#line 74 "c:/programmator/variables.h"
 char code_state =  99 ;
 #line 1 "c:/programmator/functions.h"
 char crc;
@@ -179,7 +180,7 @@ void main() {
  if (code_state !=  60 )
  code_ready =  3 ;
  }
- if (rx_buf_copy[0] & 0b11110000 >  10 << 4 ) {
+ if ((rx_buf_copy[0] & 0b11110000) >  10 << 4 ) {
  code_ready =  4 ;
  }
  } else {
@@ -189,10 +190,11 @@ void main() {
  }
  }
  if (code_ready !=  0  && code_state ==  99 ) {
- code_buf[0] = rx_buf_copy[0];
- code_buf[1] = rx_buf_copy[1];
- if (code_ready ==  1 ) {
 
+ code_buf[1] = rx_buf_copy[1];
+ code_num = rx_buf_copy[0] & 0b00001111;
+ if (code_ready ==  1 ) {
+ code_state = rx_buf_copy[0] >> 4;
  }
  if (code_ready ==  2 ) {
  code_state =  71 ;
@@ -208,7 +210,7 @@ void main() {
  }
 
  switch (code_state){
-#line 166 "C:/Programmator/prog.c"
+#line 167 "C:/Programmator/prog.c"
  case  0 :
 
  break;
@@ -246,6 +248,9 @@ void main() {
  case  42 :
 
  break;
+ case  43 :
+
+ break;
 
  case  9 :
 
@@ -268,7 +273,9 @@ void main() {
  break;
 
  case  70 :
-
+ tx_crc[0] = code_num + ( 40  << 4);
+ tx_crc[1] =  70  & 0b00001111;
+ code_state =  90 ;
  break;
  case  71 :
 
@@ -288,13 +295,19 @@ void main() {
  break;
 
  case  90 :
-
+ tx_crc[2] = crc8(tx_crc[0]);
  break;
  case  91 :
-
+ tx_crc[2] = crc8(tx_crc[2] ^ tx_buf[1]);
  break;
  case  92 :
-
+ if (tx_n == 0) {
+ tx_buf[0] = tx_crc[0];
+ tx_buf[1] = tx_crc[1];
+ tx_buf[2] = tx_crc[2];
+ tx_start(3 , rx_buf_copy);
+ code_state =  99 ;
+ }
  break;
  }
  }

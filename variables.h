@@ -12,9 +12,9 @@ char rx_pack_n_mc;           // номер посылки внутри МК (для входящих посылок)
 char rx_synch_f = 0;         // флаг синхронизации, гарантия что дальше данные не с середины байта и не с середины пакета
 char rx_pream_n;             // кол-во совпадений преамбулы
 #define rx_PREAM 'i'//0xFF        // преамбула
-char rx_crc;
+char rx_crc;                 // буфер под промежуточные вычисления crc входящих данных
 
-char tx_crc;
+char tx_crc[3];              // буфер для ответной посылки, используется при вычислении crc
 char *tx_pointer;            // указатель на начало пакета передачи
 char tx_n = 0;               // количество передаваемых байт (3 или 5)
 char tx_buf[3];              // буфер под данные
@@ -35,39 +35,41 @@ char code_ready = 0;         // готовность кода для выполнения
 #define code_ready_ERR_C 4
 
 char code_buf[2];            // код для выполнения
-#define code_state_rd_p1 0                    // | --- управление выходами ---
-#define code_state_wr_p1 1                    // | запись p1
-#define code_state_im_p1 2                    // | импульс p1
-#define code_state_rd_p3 3                    // | чтение p3
-#define code_state_wr_p3 4                    // |
-#define code_state_im_p3 5                    // |
-#define code_state_wr_r  6                    // | запись в регистр
-#define code_state_im_r  7                    // | ---------------------------
+char code_num;               // номер, вычлененный из принятой посылки
+#define code_state_RD_P1 0                    // | --- управление выходами ---
+#define code_state_WR_P1 1                    // | запись p1
+#define code_state_IM_P1 2                    // | импульс p1
+#define code_state_RD_P3 3                    // | чтение p3
+#define code_state_WR_P3 4                    // |
+#define code_state_IM_P3 5                    // |
+#define code_state_WR_R  6                    // | запись в регистр
+#define code_state_IM_R  7                    // | ---------------------------
 
-#define code_state_err         8               // ошибки (реакция на ошибки)
-#define code_state_err_pream     40              // ошибка преамбулы
-#define code_state_err_crc       41              // ошибка crc
-#define code_state_err_for       42              // ошибка формата
+#define code_state_ERR         8               // ошибки (реакция на ошибки)
+#define code_state_ERR_PREAM     40              // ошибка преамбулы
+#define code_state_ERR_CRC       41              // ошибка crc
+#define code_state_ERR_N         42              // ошибка формата номера
+#define code_state_ERR_C         43              // ошибка формата кода
 
-#define code_state_ok          9               // подтверждения (реакция на подтверждения)
-#define code_state_ok_st         50              // подтверждение старта сессии
-#define code_state_ok_end        51              // подтверждение конца сессии
+#define code_state_OK          9               // подтверждения (реакция на подтверждения)
+#define code_state_OK_ST         50              // подтверждение старта сессии
+#define code_state_OK_END        51              // подтверждение конца сессии
 
-#define code_state_ses        10               // управление сессией
-#define code_state_ses_st        60              // начало сессии
-#define code_state_ses_end       61              // конец сессии
+#define code_state_SES        10               // управление сессией
+#define code_state_SES_ST        60              // начало сессии
+#define code_state_SES_END       61              // конец сессии
 
-#define code_state_msg_err_pream 70            // отправка сообщения о ошибке/преамбула
-#define code_state_msg_err_crc   71            // -//- ошибке/crc
-#define code_state_msg_err_n     72            // -//- ошибке/номер входящего сообщения
-#define code_state_msg_err_c     73            // -//- ошибке/команда входящего сообщения
+#define code_state_MSG_ERR_PREAM 70            // отправка сообщения о ошибке/преамбула
+#define code_state_MSG_ERR_CRC   71            // -//- ошибке/crc
+#define code_state_MSG_ERR_N     72            // -//- ошибке/номер входящего сообщения
+#define code_state_MSG_ERR_C     73            // -//- ошибке/команда входящего сообщения
 
-#define code_state_msg_ok_st     80            // отправка сообщения с подтверждением/старт сессии
-#define code_state_msg_ok_end    81            // -//- подтверждением/конец сессии
+#define code_state_MSG_OK_ST     80            // отправка сообщения с подтверждением/старт сессии
+#define code_state_MSG_OK_END    81            // -//- подтверждением/конец сессии
 
-#define code_state_crc0          90            // crc, вычисление байта 0
-#define code_state_crc1          91            // crc, вычисление байта 1
-#define code_state_crc2          92            // crc, отправка в выходной буфер передатчика
+#define code_state_CRC0          90            // crc, вычисление байта 0
+#define code_state_CRC1          91            // crc, вычисление байта 1
+#define code_state_CRC2          92            // crc, отправка в выходной буфер передатчика
 #define code_state_STOP       99                   // стоп автомата
 char code_state = code_state_STOP;  // состояние исполнителя кода
 #define code_state_rx_MAX 10 << 4              // максимальный допустимый принятый номер команды, сдвинутый влево
