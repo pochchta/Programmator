@@ -17,7 +17,7 @@ char rx_crc;                 // буфер под промежуточные вычисления crc входящих 
 char tx_crc[3];              // буфер для ответной посылки, используется при вычислении crc
 char *tx_pointer;            // указатель на начало пакета передачи
 char tx_n = 0;               // количество передаваемых байт (3 или 5)
-char tx_buf[3];              // буфер под данные
+char tx_buf[3];              // буфер под данные, автопередача пока tx_n != 0
 const char tx_msg_rom[2][4] = {"ERR" , "OK!"};
 #define tx_msg_ERR 0
 #define tx_msg_OK 1
@@ -35,7 +35,8 @@ char code_ready = 0;         // готовность кода для выполнения
 #define code_ready_ERR_C 4
 
 char code_buf[2];            // код для выполнения
-char code_num;               // номер, вычлененный из принятой посылки
+char code_n_rx;              // номер, вычлененный из принятой посылки
+char code_n_inner;           // номер посылки, считающийся внутри МК
 #define code_state_RD_P1 0                    // | --- управление выходами ---
 #define code_state_WR_P1 1                    // | запись p1
 #define code_state_IM_P1 2                    // | импульс p1
@@ -72,4 +73,4 @@ char code_num;               // номер, вычлененный из принятой посылки
 #define code_state_CRC2          92            // crc, отправка в выходной буфер передатчика
 #define code_state_STOP       99                   // стоп автомата
 char code_state = code_state_STOP;  // состояние исполнителя кода
-#define code_state_rx_MAX 10 << 4              // максимальный допустимый принятый номер команды, сдвинутый влево
+#define code_state_rx_MAX 10                  // максимальный допустимый принятый номер команды

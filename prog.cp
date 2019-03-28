@@ -37,8 +37,9 @@ char code_ready = 0;
 
 
 char code_buf[2];
-char code_num;
-#line 74 "c:/programmator/variables.h"
+char code_n_rx;
+char code_n_inner;
+#line 75 "c:/programmator/variables.h"
 char code_state =  99 ;
 #line 1 "c:/programmator/functions.h"
 char crc;
@@ -53,7 +54,7 @@ char crc8(char crc8_input){
  rlc A
  mov _crc, A
  JNC M_CRC_END
- xrl A,  #0xD5 
+ xrl A,  #0x07 
  mov _crc, A
  M_CRC_END:
  }
@@ -154,6 +155,13 @@ void main() {
  if (rx_pack_n != rx_pack_n_prev) {
  crc_state = 0;
  rx_pack_n_prev = rx_pack_n;
+ if (rx_synch_f == 0) {
+ if (code_state ==  99 ) {
+ tx_crc[0] = rx_pack_n_prev + ( 8  << 4);
+ tx_crc[1] =  70 ;
+ code_state =  90 ;
+ }
+ }
  }
 
  if (rx_synch_f == 1) {
@@ -180,7 +188,7 @@ void main() {
  if (code_state !=  60 )
  code_ready =  3 ;
  }
- if ((rx_buf_copy[0] & 0b11110000) >  10 << 4 ) {
+ if ((rx_buf_copy[0] & 0b11110000) >  10  << 4) {
  code_ready =  4 ;
  }
  } else {
@@ -192,36 +200,40 @@ void main() {
  if (code_ready !=  0  && code_state ==  99 ) {
 
  code_buf[1] = rx_buf_copy[1];
- code_num = rx_buf_copy[0] & 0b00001111;
+ code_n_inner = rx_pack_n_copy;
+ code_n_rx = rx_buf_copy[0] & 0b00001111;
  if (code_ready ==  1 ) {
  code_state = rx_buf_copy[0] >> 4;
+ } else {
+ tx_crc[0] = code_n_inner + ( 8  << 4);
+ code_state =  90 ;
  }
  if (code_ready ==  2 ) {
- code_state =  71 ;
+ tx_crc[1] =  71 ;
  }
  if (code_ready ==  3 ) {
- code_state =  72 ;
+ tx_crc[1] =  72 ;
  }
  if (code_ready ==  4 ) {
- code_state =  73 ;
+ tx_crc[1] =  73 ;
  }
  code_ready =  0 ;
  }
  }
 
  switch (code_state){
-#line 167 "C:/Programmator/prog.c"
+#line 178 "C:/Programmator/prog.c"
  case  0 :
-
+ code_state =  99 ;
  break;
  case  1 :
-
+ code_state =  99 ;
  break;
  case  2 :
-
+ code_state =  99 ;
  break;
  case  3 :
-
+ code_state =  99 ;
  break;
  case  4 :
 
@@ -271,41 +283,21 @@ void main() {
  case  61 :
 
  break;
-
- case  70 :
- tx_crc[0] = code_num + ( 40  << 4);
- tx_crc[1] =  70  & 0b00001111;
- code_state =  90 ;
- break;
- case  71 :
-
- break;
- case  72 :
-
- break;
- case  73 :
-
- break;
-
- case  80 :
-
- break;
- case  81 :
-
- break;
-
+#line 267 "C:/Programmator/prog.c"
  case  90 :
  tx_crc[2] = crc8(tx_crc[0]);
+ code_state =  91 ;
  break;
  case  91 :
- tx_crc[2] = crc8(tx_crc[2] ^ tx_buf[1]);
+ tx_crc[2] = crc8(tx_crc[2] ^ tx_crc[1]);
+ code_state =  92 ;
  break;
  case  92 :
  if (tx_n == 0) {
  tx_buf[0] = tx_crc[0];
  tx_buf[1] = tx_crc[1];
  tx_buf[2] = tx_crc[2];
- tx_start(3 , rx_buf_copy);
+ tx_start(5 , tx_buf);
  code_state =  99 ;
  }
  break;

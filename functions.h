@@ -1,5 +1,5 @@
 char crc;                    // глобальная, т.к. используется в ассемблерной вставке
-#define CRC8_POLYNOM #0xD5
+#define CRC8_POLYNOM #0x07   // был #0xD5, у полинома 0x07 лучше перемешивание ?
 char crc8(char crc8_input){  // CRC-8/DVB-S2
      char i_crc;
      crc = crc8_input;
@@ -32,4 +32,3 @@ void tx_msg_to_buf(const char *tx_msg_input){                  // запись текста 
         tx_buf[tx_msg_i] = tx_msg_input[tx_msg_i];
     }
 }
-

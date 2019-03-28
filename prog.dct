@@ -62,7 +62,8 @@ ceil
 character8x7
 cmd_status
 code_buf
-code_num
+code_n_inner
+code_n_rx
 code_ready
 code_state
 compare_double

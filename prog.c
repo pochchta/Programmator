@@ -100,6 +100,13 @@ void main() {
         if (rx_pack_n != rx_pack_n_prev) {       // получение новой посылки
             crc_state = 0;
             rx_pack_n_prev = rx_pack_n;
+            if (rx_synch_f == 0) {
+                if (code_state == code_state_STOP) {
+                    tx_crc[0] = rx_pack_n_prev + (code_state_ERR << 4);
+                    tx_crc[1] = code_state_MSG_ERR_PREAM;
+                    code_state = code_state_CRC0;
+                }
+            }
         }
 
         if (rx_synch_f == 1) {                   // проверка данных
@@ -126,7 +133,7 @@ void main() {
                         if (code_state != code_state_SES_ST) // проверка на правильность номера, исключение - старт сессии
                           code_ready = code_ready_ERR_N;
                     }
-                    if ((rx_buf_copy[0] & 0b11110000) > code_state_rx_MAX) { // проверка на правильность кода
+                    if ((rx_buf_copy[0] & 0b11110000) > code_state_rx_MAX << 4) { // проверка на правильность кода
                         code_ready = code_ready_ERR_C;
                     }
                 } else {
@@ -138,43 +145,47 @@ void main() {
             if (code_ready != code_ready_NOT && code_state == code_state_STOP) {
                 //code_buf[0] = rx_buf_copy[0];
                 code_buf[1] = rx_buf_copy[1];
-                code_num = rx_buf_copy[0] & 0b00001111;
+                code_n_inner = rx_pack_n_copy;
+                code_n_rx = rx_buf_copy[0] & 0b00001111;
                 if (code_ready == code_ready_OK) {
                     code_state = rx_buf_copy[0] >> 4;
+                } else {
+                    tx_crc[0] = code_n_inner + (code_state_ERR << 4);
+                    code_state = code_state_CRC0;
                 }
                 if (code_ready == code_ready_ERR_CRC) {
-                    code_state = code_state_MSG_ERR_CRC;
+                    tx_crc[1] = code_state_MSG_ERR_CRC;
                 }
                 if (code_ready == code_ready_ERR_N) {
-                    code_state = code_state_MSG_ERR_N;
+                    tx_crc[1] = code_state_MSG_ERR_N;
                 }
                 if (code_ready == code_ready_ERR_C) {
-                    code_state = code_state_MSG_ERR_C;
+                    tx_crc[1] = code_state_MSG_ERR_C;
                 }
                 code_ready = code_ready_NOT;
             }
         }
 
         switch (code_state){                     // исполнитель кода
-        /*
-            case 111: tx_start(3 , rx_buf_copy);
+
+/*case 0: tx_start(3 , rx_buf_copy);
                 code_state = code_state_STOP;
                 break;
             case 112: tx_msg_to_buf(tx_msg_rom[tx_msg_ERR]);
                 tx_start(3 , tx_buf);
                 code_state = code_state_STOP;
-                break;                      */
+                break;*/
             case code_state_RD_P1:
-            
+                code_state = code_state_STOP;
                 break;
             case code_state_WR_P1:
-
+                code_state = code_state_STOP;
                 break;
             case code_state_IM_P1:
-
+                code_state = code_state_STOP;
                 break;
             case code_state_RD_P3:
-
+                code_state = code_state_STOP;
                 break;
             case code_state_WR_P3:
 
@@ -225,19 +236,25 @@ void main() {
 
                 break;
             //---------------------------
-            case code_state_MSG_ERR_PREAM:
-                tx_crc[0] = code_num + (code_state_ERR_PREAM << 4);
-                tx_crc[1] = code_state_MSG_ERR_PREAM & 0b00001111;
+/*case code_state_MSG_ERR_PREAM:
+                tx_crc[0] = code_n_inner + (code_state_ERR_PREAM << 4);
+                tx_crc[1] = code_state_MSG_ERR_PREAM;
                 code_state = code_state_CRC0;
                 break;
             case code_state_MSG_ERR_CRC:
-
+                tx_crc[0] = code_n_inner + (code_state_ERR << 4);
+                tx_crc[1] = code_state_MSG_ERR_CRC;
+                code_state = code_state_CRC0;
                 break;
             case code_state_MSG_ERR_N:
-
+                tx_crc[0] = code_n_inner + (code_state_ERR << 4);
+                tx_crc[1] = code_state_MSG_ERR_N;
+                code_state = code_state_CRC0;
                 break;
             case code_state_MSG_ERR_C:
-
+                tx_crc[0] = code_n_inner + (code_state_ERR << 4);
+                tx_crc[1] = code_state_MSG_ERR_CRC;
+                code_state = code_state_CRC0;
                 break;
             //---------------------------
             case code_state_MSG_OK_ST:
@@ -245,20 +262,22 @@ void main() {
                 break;
             case code_state_MSG_OK_END:
 
-                break;
+                break;*/
             //---------------------------
             case code_state_CRC0:
                 tx_crc[2] = crc8(tx_crc[0]);
+                code_state = code_state_CRC1;
                 break;
             case code_state_CRC1:
-                tx_crc[2] = crc8(tx_crc[2] ^ tx_buf[1]);
+                tx_crc[2] = crc8(tx_crc[2] ^ tx_crc[1]);
+                code_state = code_state_CRC2;
                 break;
             case code_state_CRC2:
                 if (tx_n == 0) {
                     tx_buf[0] = tx_crc[0];
                     tx_buf[1] = tx_crc[1];
                     tx_buf[2] = tx_crc[2];
-                    tx_start(5 , rx_buf_copy);
+                    tx_start(5 , tx_buf);
                     code_state = code_state_STOP;
                 }
                 break;
